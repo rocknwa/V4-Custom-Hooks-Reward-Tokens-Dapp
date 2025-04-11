@@ -15,6 +15,7 @@ import {Constants} from "v4-core/src/../test/utils/Constants.sol";
 import {TickMath} from "v4-core/src/libraries/TickMath.sol";
 import {CurrencyLibrary, Currency} from "v4-core/src/types/Currency.sol";
 import {Counter} from "../src/Counter.sol";
+import {RewardHook} from "../src/RewardHook.sol";
 import {HookMiner} from "v4-periphery/src/utils/HookMiner.sol";
 import {IPositionManager} from "v4-periphery/src/interfaces/IPositionManager.sol";
 import {PositionManager} from "v4-periphery/src/PositionManager.sol";
@@ -30,49 +31,58 @@ contract CounterScript is Script, DeployPermit2 {
     using EasyPosm for IPositionManager;
 
     address constant CREATE2_DEPLOYER = address(0x4e59b44847b379578588920cA78FbF26c0B4956C);
+    address constant TOKEN = address(0x0165878A594ca255338adfa4d48449f69242Eb8F); //address of token0 if you run the script for the first time
     IPoolManager manager;
     IPositionManager posm;
     PoolModifyLiquidityTest lpRouter;
     PoolSwapTest swapRouter;
 
+
     function setUp() public {}
 
     function run() public {
+  
         vm.broadcast();
         manager = deployPoolManager();
 
         // hook contracts must have specific flags encoded in the address
+        // Define the permissions for the hook
         uint160 permissions = uint160(
-            Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG | Hooks.BEFORE_ADD_LIQUIDITY_FLAG
-                | Hooks.BEFORE_REMOVE_LIQUIDITY_FLAG
+            Hooks.AFTER_SWAP_FLAG // We're only implementing afterSwap
         );
 
-        // Mine a salt that will produce a hook address with the correct permissions
-        (address hookAddress, bytes32 salt) =
-            HookMiner.find(CREATE2_DEPLOYER, permissions, type(Counter).creationCode, abi.encode(address(manager)));
+          
+        // Calculate the salt and expected address for the RewardHook
+        (address expectedHookAddress, bytes32 salt) = HookMiner.find(
+            CREATE2_DEPLOYER,
+            permissions,
+            type(RewardHook).creationCode,
+            abi.encode(address(manager), TOKEN) // Constructor arguments
+        );
 
-        // ----------------------------- //
-        // Deploy the hook using CREATE2 //
-        // ----------------------------- //
+        // -----------------------------
+        // Deploy the hook using CREATE2
+        // -----------------------------
         vm.broadcast();
-        Counter counter = new Counter{salt: salt}(manager);
-        require(address(counter) == hookAddress, "CounterScript: hook address mismatch");
+        RewardHook rewardHook = new RewardHook{salt: salt}(manager, TOKEN);
+        require(address(rewardHook) == expectedHookAddress, "RewardHookScript: Hook address mismatch");
 
         // Additional helpers for interacting with the pool
         vm.startBroadcast();
         posm = deployPosm(manager);
-        (lpRouter, swapRouter,) = deployRouters(manager);
+        (lpRouter, swapRouter, ) = deployRouters(manager);
         vm.stopBroadcast();
 
-        // test the lifecycle (create pool, add liquidity, swap)
+        // Test the lifecycle (create pool, add liquidity, swap)
         vm.startBroadcast();
-        testLifecycle(address(counter));
+        testLifecycle(address(rewardHook));
         vm.stopBroadcast();
     }
 
     // -----------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------
+
     function deployPoolManager() internal returns (IPoolManager) {
         return IPoolManager(address(new PoolManager(address(0))));
     }
@@ -97,6 +107,7 @@ contract CounterScript is Script, DeployPermit2 {
         // Because POSM uses permit2, we must execute 2 permits/approvals.
         // 1. First, the caller must approve permit2 on the token.
         IERC20(Currency.unwrap(currency)).approve(address(permit2), type(uint256).max);
+
         // 2. Then, the caller must approve POSM as a spender of permit2
         permit2.approve(Currency.unwrap(currency), address(_posm), type(uint160).max, type(uint48).max);
     }
@@ -111,20 +122,27 @@ contract CounterScript is Script, DeployPermit2 {
             token0 = tokenB;
             token1 = tokenA;
         }
+
     }
 
     function testLifecycle(address hook) internal {
         (MockERC20 token0, MockERC20 token1) = deployTokens();
+        //token = address(token0);
         token0.mint(msg.sender, 100_000 ether);
         token1.mint(msg.sender, 100_000 ether);
 
-        // initialize the pool
+        // Initialize the pool
         int24 tickSpacing = 60;
-        PoolKey memory poolKey =
-            PoolKey(Currency.wrap(address(token0)), Currency.wrap(address(token1)), 3000, tickSpacing, IHooks(hook));
+        PoolKey memory poolKey = PoolKey(
+            Currency.wrap(address(token0)),
+            Currency.wrap(address(token1)),
+            3000,
+            tickSpacing,
+            IHooks(hook)
+        );
         manager.initialize(poolKey, Constants.SQRT_PRICE_1_1);
 
-        // approve the tokens to the routers
+        // Approve the tokens to the routers
         token0.approve(address(lpRouter), type(uint256).max);
         token1.approve(address(lpRouter), type(uint256).max);
         token0.approve(address(swapRouter), type(uint256).max);
@@ -132,34 +150,54 @@ contract CounterScript is Script, DeployPermit2 {
         approvePosmCurrency(posm, Currency.wrap(address(token0)));
         approvePosmCurrency(posm, Currency.wrap(address(token1)));
 
-        // add full range liquidity to the pool
+        // Add full range liquidity to the pool
         int24 tickLower = TickMath.minUsableTick(tickSpacing);
         int24 tickUpper = TickMath.maxUsableTick(tickSpacing);
         _exampleAddLiquidity(poolKey, tickLower, tickUpper);
 
-        // swap some tokens
+        // Swap some tokens
         _exampleSwap(poolKey);
     }
 
     function _exampleAddLiquidity(PoolKey memory poolKey, int24 tickLower, int24 tickUpper) internal {
-        // provisions full-range liquidity twice. Two different periphery contracts used for example purposes.
-        IPoolManager.ModifyLiquidityParams memory liqParams =
-            IPoolManager.ModifyLiquidityParams(tickLower, tickUpper, 100 ether, 0);
+        // Provisions full-range liquidity twice. Two different periphery contracts used for example purposes.
+        IPoolManager.ModifyLiquidityParams memory liqParams = IPoolManager.ModifyLiquidityParams(
+            tickLower,
+            tickUpper,
+            100 ether,
+            0
+        );
         lpRouter.modifyLiquidity(poolKey, liqParams, "");
-
-        posm.mint(poolKey, tickLower, tickUpper, 100e18, 10_000e18, 10_000e18, msg.sender, block.timestamp + 300, "");
+        posm.mint(
+            poolKey,
+            tickLower,
+            tickUpper,
+            100e18,
+            10_000e18,
+            10_000e18,
+            msg.sender,
+            block.timestamp + 300,
+            ""
+        );
     }
 
     function _exampleSwap(PoolKey memory poolKey) internal {
         bool zeroForOne = true;
         int256 amountSpecified = 1 ether;
+
+        // Encode hookData with the user address
+        bytes memory hookData = abi.encode(msg.sender);
         IPoolManager.SwapParams memory params = IPoolManager.SwapParams({
             zeroForOne: zeroForOne,
             amountSpecified: amountSpecified,
-            sqrtPriceLimitX96: zeroForOne ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1 // unlimited impact
+            sqrtPriceLimitX96: zeroForOne ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
         });
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
-        swapRouter.swap(poolKey, params, testSettings, "");
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
+
+        // Pass hookData to swap
+        swapRouter.swap(poolKey, params, testSettings, hookData);
     }
 }

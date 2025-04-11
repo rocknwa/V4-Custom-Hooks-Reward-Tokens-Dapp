@@ -1,100 +1,211 @@
-# v4-template
-### **A template for writing Uniswap v4 Hooks 🦄**
+# RewardHook and Uniswap v4 Swap Demo
 
-[`Use this Template`](https://github.com/uniswapfoundation/v4-template/generate)
+## Overview
 
-1. The example hook [Counter.sol](src/Counter.sol) demonstrates the `beforeSwap()` and `afterSwap()` hooks
-2. The test template [Counter.t.sol](test/Counter.t.sol) preconfigures the v4 pool manager, test tokens, and test liquidity.
+This project integrates a custom **Reward Hook** with Uniswap v4, allowing users to earn rewards (in the form of POINTS tokens) when performing swaps involving a specified target token. The project includes both a Solidity smart contract (`RewardHook.sol`) and a React frontend to interact with the deployed contracts.
 
-<details>
-<summary>Updating to v4-template:latest</summary>
+## Features
 
-This template is actively maintained -- you can update the v4 dependencies, scripts, and helpers: 
-```bash
-git remote add template https://github.com/uniswapfoundation/v4-template
-git fetch template
-git merge template/main <BRANCH> --allow-unrelated-histories
-```
-
-</details>
+- **Reward Hook**: A Uniswap v4 hook that mints POINTS tokens to incentivize swaps involving a specific target token.
+- **POINTS Token**: ERC-20 token representing rewards, deployed as part of the `RewardHook` contract.
+- **React Frontend**: A user-friendly interface for interacting with the Uniswap v4 pool and performing token swaps.
+- **Blockchain Integration**: Uses Ethereum and Ethers.js for seamless smart contract interactions.
 
 ---
 
-### Check Forge Installation
-*Ensure that you have correctly installed Foundry (Forge) Stable. You can update Foundry by running:*
+## Smart Contract Details
 
-```
-foundryup
-```
+### RewardHook
 
-> *v4-template* appears to be _incompatible_ with Foundry Nightly. See [foundry announcements](https://book.getfoundry.sh/announcements) to revert back to the stable build
+The `RewardHook` contract is a custom implementation of Uniswap v4's hook system, providing the following functionality:
 
+- **Reward System**:
+  - **Base Reward**: Users receive 10 POINTS tokens for their first swap involving the target token.
+  - **Ongoing Reward**: Users earn 1 POINTS token for every subsequent swap involving the target token.
+- **POINTS Token**: Deployed as part of the `RewardHook` contract using the `MockERC20` implementation.
+- **Target Token Incentive**: Rewards are issued only for swaps involving the specified target token.
 
+### Hook Permissions
 
-## Set up
+The `RewardHook` implements the `afterSwap` hook, enabling it to execute custom logic after a swap is performed.
 
-*requires [foundry](https://book.getfoundry.sh)*
+---
 
-```
-forge install
-forge test
-```
+## Frontend Details
 
-### Local Development (Anvil)
+### Features
 
-Other than writing unit tests (recommended!), you can only deploy & test hooks on [anvil](https://book.getfoundry.sh/anvil/)
+The React frontend provides the following functionality:
 
-```bash
-# start anvil, a local EVM chain
-anvil
+- **Wallet Connection**: Automatically connects to the first account on the local Ethereum node (e.g., Anvil).
+- **Swap Tokens**: Allows users to perform swaps between two tokens (`Token0` and `Token1`) using Uniswap v4's `SwapRouter`.
+- **POINTS Balance**: Displays the user's current POINTS token balance.
+- **Transaction Details**: Shows the new token balances after a successful swap.
 
-# in a new terminal
-forge script script/Anvil.s.sol \
+### Technologies Used
+
+- **React**: For the user interface.
+- **Ethers.js**: For interacting with smart contracts and the Ethereum blockchain.
+- **CSS**: For styling the application.
+
+---
+
+## How It Works
+
+### Smart Contract
+
+1. **Deployment**:
+   - The `RewardHook` contract requires the following during deployment:
+     - Uniswap v4 `PoolManager` address.
+     - Address of the target token to incentivize.
+   - The `RewardHook` uses `CREATE2` to ensure a deterministic contract address. This address is calculated using specific flags and constructor arguments.
+
+2. **Reward Logic**:
+   - The `afterSwap` function checks if the swap involves the target token.
+   - Rewards are calculated, and POINTS tokens are minted directly to the user's account.
+
+3. **POINTS Token**:
+   - Deployed as an ERC-20 token with 18 decimals.
+   - Used exclusively as rewards for incentivizing swaps.
+
+4. **Liquidity Provision**:
+   - The deployment script initializes a Uniswap v4 pool and adds full-range liquidity using helper contracts.
+
+---
+
+### React Frontend
+
+1. **Setup**:
+   - Connects to a local Ethereum node (e.g., Anvil) using a hardcoded private key (for demonstration purposes only—**do not expose private keys in production**).
+
+2. **Performing a Swap**:
+   - Users input the amount of `Token0` to swap for `Token1`.
+   - The `SwapRouter` contract is used to execute the swap, and the `RewardHook` logic is triggered.
+
+3. **Displaying Results**:
+   - The frontend fetches the updated token balances and POINTS balance after the swap.
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- **Node.js** (v18 or later)
+- **Check Forge Installation** Ensure that you have correctly installed Foundry (Forge) Stable. You can update Foundry by running:
+  ```bash
+  foundryup
+   ```
+
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/rocknwa/V4-Custom-Hooks-Reward-Tokens-Dapp.git
+   cd V4-Custom-Hooks-Reward-Tokens-D
+   ```
+
+2. Install dependencies:
+   ```bash
+   forge install
+   ```
+   or run this command to test only the `RewardHook` contract
+   ```bash
+   forge test --match-path test/RewardHook.t.sol --match-contract RewardHookTest
+   ```
+
+4. Run tests to ensure everything is set up correctly:
+   ```bash
+   forge test
+   ```
+
+5. Deploy contracts and configure the frontend with their addresses. But if you run it once successfully the first, the addresses will be the same.
+
+---
+
+## Deployment
+
+### Smart Contracts
+
+1. Start the local Ethereum node (e.g., Anvil):
+   ```bash
+   anvil
+   ```
+
+2. Deploy the smart contracts using the provided deployment script:
+   ```bash
+   forge script script/Anvil.s.sol \
+
     --rpc-url http://localhost:8545 \
-    --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
-    --broadcast
+
+    --private-key <test_wallet_private_key> \
+    
+    --broadcast –via-ir
+    ```
+
+3. The deployment script performs the following:
+   - Deploys the `PoolManager` and `RewardHook` contracts using `CREATE2` for deterministic addresses.
+   - Deploys helper contracts for managing liquidity and swaps.
+   - Initializes a Uniswap v4 pool and adds full-range liquidity.
+   - Performs an example swap to test the lifecycle of the `RewardHook`.
+
+4. Update the contract addresses in the React frontend (`App.js`).
+
+### Frontend
+
+1. Navigate to the frontend directory:
+```bash
+cd frontend
 ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-See [script/](script/) for hook deployment, pool creation, liquidity provision, and swapping.
+3. Start the React development server:
+   ```bash
+   npm start
+   ```
 
----
-
-<details>
-<summary><h2>Troubleshooting</h2></summary>
-
-
-
-### *Permission Denied*
-
-When installing dependencies with `forge install`, Github may throw a `Permission Denied` error
-
-Typically caused by missing Github SSH keys, and can be resolved by following the steps [here](https://docs.github.com/en/github/authenticating-to-github/connecting-to-github-with-ssh) 
-
-Or [adding the keys to your ssh-agent](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent#adding-your-ssh-key-to-the-ssh-agent), if you have already uploaded SSH keys
-
-### Hook deployment failures
-
-Hook deployment failures are caused by incorrect flags or incorrect salt mining
-
-1. Verify the flags are in agreement:
-    * `getHookCalls()` returns the correct flags
-    * `flags` provided to `HookMiner.find(...)`
-2. Verify salt mining is correct:
-    * In **forge test**: the *deployer* for: `new Hook{salt: salt}(...)` and `HookMiner.find(deployer, ...)` are the same. This will be `address(this)`. If using `vm.prank`, the deployer will be the pranking address
-    * In **forge script**: the deployer must be the CREATE2 Proxy: `0x4e59b44847b379578588920cA78FbF26c0B4956C`
-        * If anvil does not have the CREATE2 deployer, your foundry may be out of date. You can update it with `foundryup`
-
-</details>
+4. Open the application in your browser:
+   ```
+   http://localhost:3000
+   ```
 
 ---
 
-Additional resources:
+## Usage
 
-[Uniswap v4 docs](https://docs.uniswap.org/contracts/v4/overview)
+1. **Connect to Wallet**: Connect to the default account on the local Ethereum node.
+2. **Perform Swap**: Enter the amount of `Token0` to swap for `Token1` and click "Swap".
+3. **View Rewards**: Check your updated POINTS token balance.
 
-[v4-periphery](https://github.com/uniswap/v4-periphery) contains advanced hook implementations that serve as a great reference
+---
 
-[v4-core](https://github.com/uniswap/v4-core)
+ 
 
-[v4-by-example](https://v4-by-example.org)
+---
 
+## Security Considerations
+
+- **Private Keys**: Do not hardcode private keys in production. Use a secure wallet or environment variable.
+
+---
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+---
+
+## Acknowledgments
+
+- **Uniswap v4**: For providing a robust decentralized trading protocol.
+- **Foundry**: For seamless contract deployment and testing.
+- **Ethers.js**: For blockchain integration.
+
+---
+
+## Contact
+
+For support, please open an issue or reach out to the contributors.

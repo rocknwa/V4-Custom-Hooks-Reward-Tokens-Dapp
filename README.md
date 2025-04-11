@@ -45,6 +45,7 @@ The React frontend provides the following functionality:
 ### Technologies Used
 
 - **React**: For the user interface.
+- **Foundry** For smart contract 
 - **Ethers.js**: For interacting with smart contracts and the Ethereum blockchain.
 - **CSS**: For styling the application.
 
@@ -92,7 +93,7 @@ The React frontend provides the following functionality:
 ### Prerequisites
 
 - **Node.js** (v18 or later)
-- WSL2 if you are using windows
+- **WSL2** if you are using windows
 - **Check Forge Installation** Ensure that you have correctly installed Foundry (Forge) Stable. You can update Foundry by running:
   ```bash
   foundryup
@@ -181,9 +182,6 @@ cd frontend
 2. **Perform Swap**: Enter the amount of `Token0` to swap for `Token1` and click "Swap".
 3. **View Rewards**: Check your updated POINTS token balance.
 
----
-
- 
 
 ---
 
@@ -209,4 +207,11 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ## Contact
 
-For support, please open an issue or reach out to the contributors.
+For support, please open an issue or reach:
+- **Therock Ani**  
+- Twitter: [@ani_therock](https://twitter.com/ani_therock)
+- Telegram: [Tech_Scorpion](https://t.me/Tech_Scorpion)
+- GitHub: [rocknwa](https://github.com/rocknwa)  
+- Email: anitherock44@gmail.com
+
+

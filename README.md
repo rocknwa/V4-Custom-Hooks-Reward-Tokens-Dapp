@@ -92,6 +92,7 @@ The React frontend provides the following functionality:
 ### Prerequisites
 
 - **Node.js** (v18 or later)
+- WSL2 if you are using windows
 - **Check Forge Installation** Ensure that you have correctly installed Foundry (Forge) Stable. You can update Foundry by running:
   ```bash
   foundryup
@@ -109,14 +110,14 @@ The React frontend provides the following functionality:
    ```bash
    forge install
    ```
-   or run this command to test only the `RewardHook` contract
-   ```bash
-   forge test --match-path test/RewardHook.t.sol --match-contract RewardHookTest
-   ```
 
-4. Run tests to ensure everything is set up correctly:
+3. Run tests to ensure everything is set up correctly:
    ```bash
    forge test
+   ```
+4. or run this command to test only the `RewardHook` contract
+   ```bash
+   forge test --match-path test/RewardHook.t.sol --match-contract RewardHookTest
    ```
 
 5. Deploy contracts and configure the frontend with their addresses. But if you run it once successfully the first, the addresses will be the same.

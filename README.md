@@ -151,8 +151,10 @@ The React frontend provides the following functionality:
  RPC_URL=http://localhost:8545
   ```
 Note: The private key is from anvil, don't expose your private key for any reason!
- Run this command:
-```source .env
+ 
+Run this command:
+```
+source .env
 ```
 Then deploy with this command:
 ```

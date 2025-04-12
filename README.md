@@ -121,7 +121,7 @@ The React frontend provides the following functionality:
    forge test --match-path test/RewardHook.t.sol --match-contract RewardHookTest
    ```
 
-5. Deploy contracts and configure the frontend with their addresses. But if you run it once successfully the first, the addresses will be the same.
+5. Deploy contracts and configure the frontend with their addresses, you can check the `run-latest.json` in the `broadcast` folder.
 
 ---
 
@@ -142,8 +142,20 @@ The React frontend provides the following functionality:
 
     --private-key <test_wallet_private_key> \
     
-    --broadcast –via-ir
+    --broadcast 
     ```
+
+  Or create a .env file in the root directory and store these:
+  ```
+ PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+ RPC_URL=http://localhost:8545
+  ```
+Note: The private key is from anvil, don't expose your private key for any reason!
+
+Then deploy with this command:
+```
+forge script script/Anvil.s.sol --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast
+```
 
 3. The deployment script performs the following:
    - Deploys the `PoolManager` and `RewardHook` contracts using `CREATE2` for deterministic addresses.

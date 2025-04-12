@@ -37,6 +37,9 @@ contract CounterScript is Script, DeployPermit2 {
     PoolModifyLiquidityTest lpRouter;
     PoolSwapTest swapRouter;
 
+    MockERC20 token0; 
+    MockERC20 token1;
+
 
     function setUp() public {}
 
@@ -51,20 +54,24 @@ contract CounterScript is Script, DeployPermit2 {
             Hooks.AFTER_SWAP_FLAG // We're only implementing afterSwap
         );
 
+        // Deploy the tokens
+        vm.startBroadcast();
+        (token0, token1) = deployTokens();
+        vm.stopBroadcast();
           
         // Calculate the salt and expected address for the RewardHook
         (address expectedHookAddress, bytes32 salt) = HookMiner.find(
             CREATE2_DEPLOYER,
             permissions,
             type(RewardHook).creationCode,
-            abi.encode(address(manager), TOKEN) // Constructor arguments
+            abi.encode(address(manager), token0) // Constructor arguments
         );
 
         // -----------------------------
         // Deploy the hook using CREATE2
         // -----------------------------
         vm.broadcast();
-        RewardHook rewardHook = new RewardHook{salt: salt}(manager, TOKEN);
+        RewardHook rewardHook = new RewardHook{salt: salt}(manager, address(token0));
         require(address(rewardHook) == expectedHookAddress, "RewardHookScript: Hook address mismatch");
 
         // Additional helpers for interacting with the pool
@@ -112,22 +119,20 @@ contract CounterScript is Script, DeployPermit2 {
         permit2.approve(Currency.unwrap(currency), address(_posm), type(uint160).max, type(uint48).max);
     }
 
-    function deployTokens() internal returns (MockERC20 token0, MockERC20 token1) {
+    function deployTokens() internal returns (MockERC20 _token0, MockERC20 _token1) {
         MockERC20 tokenA = new MockERC20("MockA", "A", 18);
         MockERC20 tokenB = new MockERC20("MockB", "B", 18);
         if (uint160(address(tokenA)) < uint160(address(tokenB))) {
-            token0 = tokenA;
-            token1 = tokenB;
+            _token0 = tokenA;
+            _token1 = tokenB;
         } else {
-            token0 = tokenB;
-            token1 = tokenA;
+            _token0 = tokenB;
+            _token1 = tokenA;
         }
 
     }
 
     function testLifecycle(address hook) internal {
-        (MockERC20 token0, MockERC20 token1) = deployTokens();
-        //token = address(token0);
         token0.mint(msg.sender, 100_000 ether);
         token1.mint(msg.sender, 100_000 ether);
 
